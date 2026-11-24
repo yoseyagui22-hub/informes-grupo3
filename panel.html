@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Grupo 3</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background-color: #f4f7f6; padding: 20px; margin: 0; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
+        h1 { text-align: center; color: #333; }
+        .controles { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        input[type="month"] { padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; background-color: #1976d2; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+        .tarjetas { display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .tarjeta { background: #e3f2fd; padding: 15px 25px; border-radius: 10px; text-align: center; min-width: 120px; }
+        .tarjeta h3 { margin: 0; font-size: 14px; color: #555; }
+        .tarjeta p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #1976d2; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .estado-si { color: #2e7d32; font-weight: bold; }
+        .estado-no { color: #d32f2f; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Panel de Administración - Grupo 3</h1>
+    <div class="controles">
+        <input type="month" id="selectorMes">
+        <button onclick="cargarDatos()">Actualizar Datos</button>
+        <button onclick="exportarCSV()" style="background-color: #2e7d32;">Exportar a Excel (CSV)</button>
+    </div>
+    <div class="tarjetas">
+        <div class="tarjeta"><h3>Total Hermanos</h3><p id="total">0</p></div>
+        <div class="tarjeta"><h3>Recibidos</h3><p id="recibidos" style="color: #2e7d32;">0</p></div>
+        <div class="tarjeta"><h3>Pendientes</h3><p id="pendientes" style="color: #d32f2f;">0</p></div>
+    </div>
+    <table id="tablaDatos">
+        <thead><tr><th>Nombre</th><th>Estado</th><th>Tipo</th><th>Horas</th><th>Cursos</th><th>Ministerio</th><th>Observaciones</th></tr></thead>
+        <tbody id="cuerpoTabla"></tbody>
+    </table>
+</div>
+<script>
+    const supabaseUrl = 'https://uhpnsloeddeqalqrbydl.supabase.co';
+    const supabaseKey = 'sb_publishable_fCrqQXXweH3EeKVSPoyfJA_YnZvcwlV';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    let datosGlobales = [];
+    document.getElementById('selectorMes').value = new Date().toISOString().slice(0, 7);
+
+    async function cargarDatos() {
+        const mes = document.getElementById('selectorMes').value;
+        const cuerpo = document.getElementById('cuerpoTabla');
+        cuerpo.innerHTML = '<tr><td colspan="7">Cargando...</td></tr>';
+        const { data: personas } = await supabase.from('people').select('*').order('nombre');
+        const { data: informes } = await supabase.from('reports').select('*').eq('mes', mes);
+        if (!personas) return;
+        let html = ''; let recibidos = 0; datosGlobales = [];
+        personas.forEach(persona => {
+            const informe = informes ? informes.find(i => i.person_id === persona.id) : null;
+            let estadoHtml = '<span class="estado-no">Falta</span>';
+            let tipo = '-', horas = '-', cursos = '-', ministerio = '-', obs = '-';
+            if (informe) {
+                recibidos++; estadoHtml = '<span class="estado-si">Recibido</span>';
+                tipo = informe.tipo_precursor; horas = informe.horas; cursos = informe.cursos;
+                ministerio = informe.participo_ministerio ? 'Sí' : 'No'; obs = informe.observaciones || '';
+            }
+            datosGlobales.push({ Nombre: persona.nombre, Estado: informe ? 'Recibido' : 'Falta', Tipo: tipo, Horas: horas, Cursos: cursos, Ministerio: ministerio, Observaciones: obs });
+            html += `<tr><td>${persona.nombre}</td><td>${estadoHtml}</td><td>${tipo}</td><td>${horas}</td><td>${cursos}</td><td>${ministerio}</td><td>${obs}</td></tr>`;
+        });
+        cuerpo.innerHTML = html;
+        document.getElementById('total').textContent = personas.length;
+        document.getElementById('recibidos').textContent = recibidos;
+        document.getElementById('pendientes').textContent = personas.length - recibidos;
+    }
+    function exportarCSV() {
+        if (datosGlobales.length === 0) return alert('Cargá los datos primero');
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFFNombre,Estado,Tipo,Horas,Cursos,Ministerio,Observaciones\n";
+        datosGlobales.forEach(rowArray => {
+            let row = Object.values(rowArray).map(val => `"${val}"`).join(",");
+            csvContent += row + "\r\n";
+        });
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", `Informe_Grupo3_${document.getElementById('selectorMes').value}.csv`);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+    cargarDatos();
+</script>
+</body>
+</html>
