@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Mensual - Grupo 3</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; padding: 20px; margin: 0; }
+        .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; font-size: 22px; }
+        label { display: block; margin-top: 15px; font-weight: 600; color: #555; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 12px; margin-top: 6px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; background-color: #2e7d32; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; margin-top: 25px; cursor: pointer; }
+        button:disabled { background-color: #9e9e9e; }
+        #mensaje { margin-top: 15px; text-align: center; font-weight: bold; }
+        .exito { color: #2e7d32; }
+        .error { color: #d32f2f; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Informe Mensual - Grupo 3</h2>
+    <form id="informeForm">
+        <label>Seleccioná tu nombre:</label>
+        <select id="nombre" required><option value="">Cargando hermanos...</option></select>
+        <label>Mes que estás informando:</label>
+        <input type="month" id="mes" required>
+        <label>Tu categoría este mes:</label>
+        <select id="tipo" required>
+            <option value="Regular">Precursor Regular</option>
+            <option value="Auxiliar">Precursor Auxiliar</option>
+            <option value="15 Horas">Precursor 15 Horas</option>
+            <option value="30 Horas">Precursor 30 Horas</option>
+            <option value="No precursor">No precursor</option>
+        </select>
+        <label>¿Participaste en el ministerio este mes?</label>
+        <select id="participo" required><option value="si">Sí</option><option value="no">No</option></select>
+        <label>Cantidad de horas:</label>
+        <input type="number" id="horas" step="0.5" min="0" placeholder="Ej: 10" required>
+        <label>Cursos bíblicos:</label>
+        <input type="number" id="cursos" min="0" placeholder="Ej: 2" required>
+        <label>Observaciones (opcional):</label>
+        <textarea id="observaciones" rows="3"></textarea>
+        <button type="submit" id="btnEnviar">Enviar informe</button>
+        <p id="mensaje"></p>
+    </form>
+</div>
+<script>
+    const supabaseUrl = 'https://uhpnsloeddeqalqrbydl.supabase.co';
+    const supabaseKey = 'sb_publishable_fCrqQXXweH3EeKVSPoyfJA_YnZvcwlV';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    async function cargarNombres() {
+        const select = document.getElementById('nombre');
+        const { data, error } = await supabase.from('people').select('id, nombre').order('nombre');
+        if (error) { select.innerHTML = '<option value="">Error al cargar</option>'; return; }
+        select.innerHTML = '<option value="">Seleccioná tu nombre</option>';
+        data.forEach(persona => {
+            const option = document.createElement('option');
+            option.value = persona.id;
+            option.textContent = persona.nombre;
+            select.appendChild(option);
+        });
+    }
+    setTimeout(cargarNombres, 500);
+
+    document.getElementById('informeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnEnviar');
+        const mensaje = document.getElementById('mensaje');
+        btn.disabled = true; btn.textContent = 'Enviando...';
+        
+        const nuevoInforme = {
+            person_id: document.getElementById('nombre').value,
+            mes: document.getElementById('mes').value,
+            tipo_precursor: document.getElementById('tipo').value,
+            participo_ministerio: document.getElementById('participo').value === 'si',
+            horas: parseFloat(document.getElementById('horas').value),
+            cursos: parseInt(document.getElementById('cursos').value),
+            observaciones: document.getElementById('observaciones').value
+        };
+
+        const { error } = await supabase.from('reports').insert([nuevoInforme]);
+        if (error) {
+            mensaje.textContent = error.code === '23505' ? 'Ya enviaste tu informe para este mes.' : 'Error al enviar.';
+            mensaje.className = 'error';
+        } else {
+            mensaje.textContent = '¡Gracias! Tu informe fue registrado correctamente.';
+            mensaje.className = 'exito';
+            document.getElementById('informeForm').reset();
+        }
+        btn.disabled = false; btn.textContent = 'Enviar informe';
+    });
+</script>
+</body>
+</html>
